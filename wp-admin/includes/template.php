@@ -715,18 +715,19 @@ function meta_form( $post = null ) {
 		 */
 		$limit = apply_filters( 'postmeta_form_limit', 30 );
 
-		$keys = $wpdb->get_col(
-			$wpdb->prepare(
-				"SELECT DISTINCT meta_key
-				FROM $wpdb->postmeta
-				WHERE meta_key NOT BETWEEN '_' AND '_z'
-				HAVING meta_key NOT LIKE %s
-				ORDER BY meta_key
-				LIMIT %d",
-				$wpdb->esc_like( '_' ) . '%',
-				$limit
-			)
-		);
+		// @since 2.4.2
+		// @jujist replace slow query with the one that takes ~0.00s.
+		// param int $limit now is the number of last posts to check instead of limiting the keys
+		
+		$keys = $wpdb->get_col($wpdb->prepare("
+			SELECT meta_key
+			FROM $wpdb->posts as p
+			LEFT JOIN $wpdb->postmeta as pm ON (p.ID=pm.post_id)
+			WHERE post_type='$post->post_type' 
+			AND SUBSTR(meta_key,1,1)!='_'
+			ORDER BY ID DESC LIMIT %d
+		", $limit));
+		$keys = array_unique($keys);
 	}
 
 	if ( $keys ) {
